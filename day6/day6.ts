@@ -9,7 +9,7 @@ function allUnique(data: string) {
 function findStartOfPacket(data: string, packetSize = 4) {
   let idx = 0;
   while (idx + packetSize < data.length) {
-    let curr = data.substring(idx, idx + packetSize);
+    const curr = data.substring(idx, idx + packetSize);
     if (allUnique(curr)) {
       return idx + packetSize;
     }
