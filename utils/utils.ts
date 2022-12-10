@@ -43,3 +43,33 @@ export class Matrix<T> extends Array<Array<T>> {
     return this.reduce((acc, row) => row.reduce((acc2, entry) => callback.apply(this, [entry, acc2]), acc), initValue);
   }
 }
+
+export class Point {
+  constructor(public x = 0, public y = 0) {}
+
+  static distanceBetween(p1: Point, p2: Point) {
+    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+  }
+
+  distanceTo(p: Point) {
+    return Point.distanceBetween(p, this);
+  }
+
+  equals(p: Point) {
+    return Point.areEqual(p, this);
+  }
+
+  static areEqual(p1: Point, p2: Point) {
+    return Point.compare(p1, p2) === 0;
+  }
+
+  static compare(p1: Point, p2: Point) {
+    const diffX = p1.x - p2.x;
+    return (diffX === 0) ? p1.y - p2.y : diffX;
+  }
+
+  copy() {
+    return new Point(this.x, this.y);
+  }
+}
+
