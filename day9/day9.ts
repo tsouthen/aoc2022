@@ -22,35 +22,49 @@ class Rope extends Array<Point> {
       pt.x += count;
   }
 
+  adjustKnot(curr: Point, prev: Point) {
+    const dx = curr.x - prev.x;
+    const dy = curr.y - prev.y;
+    const xIsTwo = Math.abs(dx) === 2;
+    const yIsTwo = Math.abs(dy) === 2;
+
+    if (!xIsTwo && !yIsTwo)
+      return false;
+
+    if (xIsTwo && yIsTwo) {
+      curr.x += (dx < 0) ? 1 : -1;
+      curr.y += (dy < 0) ? 1 : -1;
+    } else if (xIsTwo) {
+      curr.x += (dx < 0) ? 1 : -1;
+      if (dy !== 0) curr.y = prev.y;
+    } else {
+      curr.y += (dy < 0) ? 1 : -1;
+      if (dx !== 0) curr.x = prev.x;
+    }
+    return true;
+  }
+
   private pushTailPosition() {
     if (this.length > 0) {
       const tailPos = this[this.length-1].copy();
       this.tailPositions.push(tailPos);
-      console.log(`Pushed tail position: ${tailPos.x}, ${tailPos.y}`);
-    }
-  }
-
-  adjustKnot(curr: Point, prev: Point, direction: string) {
-    const distance = prev.distanceTo(curr);
-    if (distance > Math.SQRT2) { 
-      Rope.adjustPoint(curr, direction);
-      if (distance !== 2) { //at an angle, move diagonally 
-        if (direction === "U" || direction === "D")
-          curr.x = prev.x;
-        else
-          curr.y = prev.y;
-      }
     }
   }
 
   move(direction: string, count: number) {
-    const head = this[0];
-    for (let ii=0; ii < count; ii++) {
-      Rope.adjustPoint(head, direction);
-      for (let knot = 1; knot < this.length; knot++) {
-        this.adjustKnot(this[knot], this[knot-1], direction);
+    while (count > 0) {
+      count--;
+      for (let index=0; index < this.length; index++) {
+        const knot = this[index];
+        if (index === 0) {
+          Rope.adjustPoint(knot, direction);
+        } else {
+          if (!this.adjustKnot(knot, this[index-1]))
+            break;
+          if (index === (this.length - 1))
+            this.pushTailPosition();
+        }
       }
-      this.pushTailPosition();
     }  
   }
 
@@ -62,18 +76,39 @@ class Rope extends Array<Point> {
     }, 0);
     return unique;
   }
+
+  print(min: Point, max: Point) {
+    for (let y = max.y; y >= min.y; y--) {
+      let line = "";
+      for (let x = min.x; x <= max.x; x++) {
+        const idx = this.findIndex(knot => knot.equals(new Point(x, y)));
+        if (idx === -1) {
+          if (x === 0 && y === 0) {
+            line = line + "s";
+          } else {
+            line = line + ".";
+          }
+        } else if (idx === 0) {
+          line = line + "H";
+        } else {
+          line = line + idx.toString();
+        }
+      }
+      console.log(line);
+    }
+  }
 }
 
-const lines = readFile("sample1.txt", import.meta.url);
-// const rope1 = Rope.create(2);
+const lines = readFile("input.txt", import.meta.url);
+const rope1 = Rope.create(2);
 const rope2 = Rope.create(10);
 lines.forEach((line) => {
   if (line.length === 0) return;
   const [direction, count] = line.split(" ");
-  // rope1.move(direction, Number(count));
+  rope1.move(direction, Number(count));
   rope2.move(direction, Number(count));
 });
-// const unique1 = rope1.countTailPositions();
-// console.log(`Part 1: ${unique1}`);
+const unique1 = rope1.countTailPositions();
+console.log(`Part 1: ${unique1}`);
 const unique2 = rope2.countTailPositions();
 console.log(`Part 2: ${unique2}`);
