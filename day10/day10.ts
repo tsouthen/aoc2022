@@ -1,15 +1,14 @@
 import { readFile } from "../utils/utils.ts";
 import { chunk } from "https://deno.land/std@0.167.0/collections/chunk.ts";
 
-const lines = readFile("input.txt", import.meta.url);
-
-const values = new Array<number>();
-lines.forEach((line) => {
-  if (line.length === 0) return;
-  values.push(0);
-  if (line.startsWith("addx "))
-    values.push(Number(line.substring(5)));
-});
+const values = readFile("input.txt", import.meta.url).reduce((values, line) => {
+  if (line.length !== 0) {
+    values.push(0);
+    if (line.startsWith("addx "))
+      values.push(Number(line.substring(5)));  
+  }
+  return values;
+}, new Array<number>());
 
 values.unshift(0); //to deal with "end of cycle" processing
 const { signalStrength } = values.reduce(({sum, signalStrength}, value, index) => {
