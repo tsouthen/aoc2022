@@ -3,7 +3,7 @@ import { readFile } from "../utils/utils.ts";
 const lines = readFile("input.txt", import.meta.url);
 
 const values = new Array<number>();
-values.push(0);
+values.push(0); //to deal with "end of cycle" processing
 lines.forEach((line) => {
   if (line.length === 0) return;
   if (line === "noop") {
@@ -13,32 +13,23 @@ lines.forEach((line) => {
     values.push(Number(line.substring(5)));
   }
 });
-let prevNum = 0;
-let prevSum = 1;
+
+let sum = 1;
 let signalStrength = 0;
-for (let num=20; num < values.length; num += 40) {
-  const sum = values.slice(prevNum, num).reduce((acc, curr) => {
-    return acc + curr;
-  }, prevSum);
+for (let num = 20; num < values.length; num += 40) {
+  sum = values.slice(Math.max(0, num - 40), num).reduce((acc, curr) => acc + curr, sum);
   signalStrength += (num * sum);
-  prevNum = num;
-  prevSum = sum;
 }
 console.log(`Part 1: ${signalStrength}`);
 
 console.log("Part 2:");
-values.shift();
+values.shift(); //remove the extra 0 added in Part 1 to deal with "end of cycle" processing
 let pos = 1;
-for (let num=0; num < values.length; num += 40) {
-  let line = "";
-  const lineVals = values.slice(num, num+40);
-  lineVals.forEach((val, index) => {
-    if (Math.abs(pos - index) <= 1) {
-      line += "#";
-    } else {
-      line += ".";
-    }
+while (values.length) {
+  const line = values.splice(0, 40).reduce((acc, val, index) => {
+    const pixel = (Math.abs(pos - index) <= 1) ? "#" : ".";
     pos += val;
-  });
-console.log(line);
+    return acc + pixel;
+  }, "");
+  console.log(line);
 }
