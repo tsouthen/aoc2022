@@ -8,6 +8,19 @@ class Node {
     const width = m[0].length;
     return new Point(this.idx % width, Math.floor(this.idx / width));
   }
+
+  get height() {
+    const aVal = "a".charCodeAt(0);
+    if (this.value === "S")
+      return aVal;
+    if (this.value === "E")
+      return "z".charCodeAt(0) - aVal;
+    return this.value.charCodeAt(0) - aVal;
+  }
+
+  canMoveTo(n: Node) {
+    return n.height - this.height <= 1;
+  }
 }
 
 const lines = readFile("sample.txt", import.meta.url);
@@ -35,17 +48,17 @@ const options : AStarOptions = {
     // gather all neighbouring nodes that have the same height or lower
     const width = map[0].length;
     const height = map.length;
-    for (let x = pt.x - 1; x < pt.x + 1; x += 2) {
+    for (let x = pt.x - 1; x <= pt.x + 1; x += 2) {
       if (x >= 0 && x < width) {
         const neighbour = map[x][pt.y];
-        if (neighbour.value <= n.value)
+        if (n.canMoveTo(neighbour))
           neighbours.push(n);
       }
     }
-    for (let y = pt.y - 1; y < pt.y + 1; y += 2) {
+    for (let y = pt.y - 1; y <= pt.y + 1; y += 2) {
       if (y >= 0 && y < height) {
         const neighbour = map[pt.x][y];
-        if (neighbour.value <= n.value)
+        if (n.canMoveTo(neighbour))
           neighbours.push();
       }
     }
