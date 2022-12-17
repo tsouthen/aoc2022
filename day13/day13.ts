@@ -40,14 +40,11 @@ function comparePackets(left: Packet, right: Packet): Order {
   return compareNumbers(left.length, right.length);
 }
 
-const lines = readFile("input.txt", import.meta.url);
-const packets = lines.filter((l) => l.length).map(l => JSON.parse(l));
-
-function part1() {
+function part1(packets: Array<Packet>) {
   let idx = 1;
   let result = 0;
-  chunk(packets, 2).forEach(([leftData, rightData]) => {
-    if (comparePackets(leftData, rightData) === Order.Correct)
+  chunk(packets, 2).forEach(([left, right]) => {
+    if (comparePackets(left, right) === Order.Correct)
       result += idx;
     idx++;
   });
@@ -60,12 +57,14 @@ function findDivider(packets: Array<Packet>, divider: number) {
   });
 }
 
-function part2() {
+function part2(packets: Array<Packet>) {
   const packets2 = new Array<Packet>(...packets, [[2]], [[6]]);
   packets2.sort(comparePackets);
   const twoIdx = 1 + findDivider(packets2, 2);
   const sixIdx = 1 + findDivider(packets2, 6);
   console.log(`Part 2: ${twoIdx * sixIdx}`);
 }
-part1();
-part2();
+
+const packets: Array<Packet> = readFile("input.txt", import.meta.url).filter((l) => l.length).map(l => JSON.parse(l));
+part1(packets);
+part2(packets);
