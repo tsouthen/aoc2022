@@ -6,7 +6,10 @@ interface XY {
 }
 
 class SensorAndBeacon {
-  constructor(public sensor: XY, public beacon: XY) {}
+  distance: number;
+  constructor(public sensor: XY, public beacon: XY) {
+    this.distance = this.distanceToPoint(beacon)
+  }
 
   static parseXY(strData: string) {
     const [xStr, yStr] = strData.split(", ");
@@ -17,21 +20,30 @@ class SensorAndBeacon {
     return Math.abs(this.sensor.x - p.x) + Math.abs(this.sensor.y - p.y);
   }
 
-  distanceToBeacon() {
-    return this.distanceToPoint(this.beacon);
-  }
-
   valuesWithinDistance(row: number) {
     const values = new Array<number>();
-    const distance = this.distanceToBeacon();
     //if sensor not within distance of the row, return empty set
-    if (Math.abs(this.sensor.y - row) > distance) return values;
+    if (Math.abs(this.sensor.y - row) > this.distance) return values;
 
-    for (let x = this.sensor.x - distance; x < this.sensor.x + distance; x++) {
-      if (this.distanceToPoint({x, y: row}) <= distance)
+    for (let x = this.sensor.x - this.distance; x < this.sensor.x + this.distance; x++) {
+      if (this.distanceToPoint({x, y: row}) <= this.distance)
         values.push(x);
     }
     return values;
+  }
+
+  coversPoint(p: XY, distance: number) {
+    const d = this.distanceToPoint(p);
+    return d <= distance;
+  }
+
+  removeCoveredXValues(y: number, xValues: Array<number>) {
+    const newXValues = new Array<number>();
+    xValues.forEach((x) => {
+      if (!this.coversPoint({x, y}, this.distance))
+        newXValues.push(x);
+    });
+    return newXValues;
   }
 
   static load(line: string): SensorAndBeacon | undefined {
@@ -61,6 +73,14 @@ function part1(data: Array<SensorAndBeacon>, row = 10) {
   console.log(`Part 1: ${values.size}`);
 }
 
+function getArrayOfValues(max: number) {
+  const arr = new Array<number>(max+1);
+  for (let x = 0; x <= max; x++) {
+    arr[x] = x;
+  }
+  return arr;
+}
+
 function part2(data: Array<SensorAndBeacon>, max = {x: 20, y: 20}) {
   for (let row = 0; row <= max.y; row++) {
     const values = new Set<number>();
@@ -78,10 +98,29 @@ function part2(data: Array<SensorAndBeacon>, max = {x: 20, y: 20}) {
   }
 }
 
+function part2New(data: Array<SensorAndBeacon>, max = {x: 20, y: 20}) {
+  data.sort((a, b) => b.distance - a.distance);
+  const fullArray = getArrayOfValues(max.x);
+  for (let row = 0; row <= max.y; row++) {
+    let xValues = fullArray.slice();
+    data.forEach((val) => {
+      if (xValues.length !== 0) {
+        const newVals = val.removeCoveredXValues(row, xValues);
+        xValues = newVals;
+      }
+    });
+    if (xValues.length === 1) {
+      console.log(`Part 2: ${xValues[0] * 4000000 + row}`);
+      return;
+    }
+  }
+}
+
 const sampleData = loadData("sample.txt");
 part1(sampleData);
-part2(sampleData);
+// part2(sampleData);
+part2New(sampleData);
 
 const inputData = loadData("input.txt");
 part1(inputData, 2000000);
-part2(inputData, { x: 4000000, y: 4000000});
+part2New(inputData, { x: 4000000, y: 4000000});
