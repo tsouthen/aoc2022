@@ -42,9 +42,17 @@ class Grid {
     }
   }
 
+  get maxColumnHeight() {
+    return Array.from(this.map.values()).reduce((max, col) => Math.max(max, col.length), 0);
+  }
+
+  get sortedKeys() {
+    return Array.from(this.map.keys()).sort((a, b) => a - b);
+  }
+
   toString() {
-    const maxLen = Array.from(this.map.values()).reduce((max, col) => Math.max(max, col.length), 0);
-    const rows = Array.from(this.map.keys()).sort((a, b) => a - b).reduce((rows, key) => {
+    const maxLen = this.maxColumnHeight;
+    const rows = this.sortedKeys.reduce((rows, key) => {
       for (let y=0; y < maxLen; y++)
         rows[y] = (rows[y] ?? "") + (this.map.get(key)![y] ?? Content.Air);
       return rows;
@@ -52,13 +60,29 @@ class Grid {
     return rows.join("\n");
   }
 
-  // Drops p by one (according to the rules) and returns the new value or undefined if it falls forever. 
+  load(lines: Array<string>) {
+    lines.forEach((l) => {
+      const coords = l.split(" -> ");
+      if (coords.length > 1) {
+        for (let idx = 1; idx < coords.length; idx++) {
+          const [fx, fy] = coords[idx-1].split(",").map(Number);
+          const [tx, ty] = coords[idx].split(",").map(Number);
+          this.addContent({ x: fx, y: fy}, {x: tx, y: ty}, Content.Rock);
+        }
+      }
+    });
+  }
+
+  // Drops p by one (according to the rules) and returns the new value or undefined if it falls forever.
   // Returns the original point if it can't drop further.
-  dropSand(p: XY) {
+  dropSand(p: XY, maxHeight: number | undefined) {
     const col = this.map.get(p.x);
-    if (col === undefined || p.y >= col.length)
+    if (maxHeight === undefined && (col === undefined || p.y >= col.length))
       return undefined;
-    
+
+    if ((p.y + 1) === maxHeight)
+      return p;
+
     for (const xOffset of [0, -1, 1]) {
       const candidate = this.getContent({x: p.x + xOffset, y: p.y + 1});
       if (candidate === Content.Air)
@@ -67,10 +91,14 @@ class Grid {
     return p;
   }
 
-  addSand(p: XY = { x: 500, y: 0}) {
+  addSand(maxHeight: number | undefined = undefined) {
+    const p = { x: 500, y: 0};
+    const currVal = this.getContent(p);
+    if (currVal !== Content.Air)
+      return undefined;
     let currPt = {...p};
     while (true) {
-      const newPos = this.dropSand(currPt);
+      const newPos = this.dropSand(currPt, maxHeight);
       if (newPos === currPt) {
         this.setContent(newPos, Content.Sand);
         return newPos;
@@ -81,26 +109,27 @@ class Grid {
       currPt = newPos;
     }
   }
+
+  clearSand() {
+    this.map.forEach((vals) => vals.forEach((val, index, col) => {if (val === Content.Sand) col[index] = Content.Air}));
+  }
+
+  addSandUntilDone(maxHeight: number | undefined = undefined) {
+    this.clearSand();
+    let count = 0;
+    while (true) {
+      const newPos = this.addSand(maxHeight);
+      if (newPos === undefined)
+        break;
+      count++;
+    }
+    return count;
+  }
 }
 
 const grid = new Grid();
-readFile("input.txt", import.meta.url).forEach((l) => {
-  const coords = l.split(" -> ");
-  if (coords.length > 1) {
-    for (let idx = 1; idx < coords.length; idx++) {
-      const [fx, fy] = coords[idx-1].split(",").map(Number);
-      const [tx, ty] = coords[idx].split(",").map(Number);
-      grid.addContent({ x: fx, y: fy}, {x: tx, y: ty}, Content.Rock);
-    }
-  }
-});
-
-let count = 0;
-while (true) {
-  const newPos = grid.addSand();
-  if (newPos === undefined)
-    break;
-  count++;
-  // console.log(`${grid}`);
-}
-console.log(`Part 1: ${count}`);
+grid.load(readFile("input.txt", import.meta.url));
+const count1 = grid.addSandUntilDone();
+console.log(`Part 1: ${count1}`);
+const count2 = grid.addSandUntilDone(grid.maxColumnHeight + 1);
+console.log(`Part 2: ${count2}`);
