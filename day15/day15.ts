@@ -26,6 +26,26 @@ class Range {
   get length() {
     return this.max - this.min + 1;
   }
+
+  static simplify(ranges: Array<Range>, maxLength: number | undefined = undefined) {
+    const newRanges = new Array<Range>();
+    for (const r of ranges) {
+      if (newRanges.length === 0) {
+        newRanges.push(r);
+      } else if (!newRanges[newRanges.length-1].union(r)) {
+        newRanges.push(r);
+        if (maxLength !== undefined && newRanges.length > maxLength)
+          break;
+      }
+    }
+    return newRanges;
+  }
+
+  static compare(a: Range, b: Range) {
+    const diff = a.min - b.min;
+    if (diff !== 0) return diff;
+    return a.max - b.max;
+  }
 }
 
 class Sensor {
@@ -104,42 +124,26 @@ function part1(data: Array<Sensor>, row = 10) {
 }
 
 function part2(data: Array<Sensor>, max = {x: 20, y: 20}) {
-  // data.sort((a, b) => b.distance - a.distance);
   let found: XY | undefined = undefined;
   for (let row = 0; row <= max.y; row++) {
-    const ranges = new Array<Range>();
-    data.forEach((val) => {
+    const ranges = data.reduce((ranges, val) => {
       const range = val.getCovered(row, 0, max.x);
       if (range)
         ranges.push(range);
-    });
-    ranges.sort((a, b) => {
-      const diff = a.min - b.min;
-      if (diff !== 0) return diff;
-      return a.max - b.max;
-    });
-    const newRanges = new Array<Range>();
-    for (const r of ranges) {
-      if (newRanges.length === 0) {
-        newRanges.push(r);
-      } else if (!newRanges[newRanges.length-1].union(r)) {
-        newRanges.push(r);
-        if (newRanges.length > 2)
-          break;
-      }
-    }
+      return ranges;
+    }, new Array<Range>()).sort(Range.compare);
+
+    const newRanges = Range.simplify(ranges, 2);
     if (newRanges.length > 2)
       continue; // move on to next row, too many non-covered
 
-    if (newRanges.length === 1) {
-      if (newRanges[0].length === max.x) {
-        found = { x: newRanges[0].min === 0 ? max.x - 1 : 0, y: row };
-        break;
-      }
-    } else if ((newRanges[0].length + newRanges[1].length) === max.x) { //length = 2
+    if (newRanges.length === 1 && newRanges[0].length === max.x) {
+      found = { x: newRanges[0].min === 0 ? max.x - 1 : 0, y: row };
+    } else if (newRanges.length === 2 && (newRanges[0].length + newRanges[1].length) === max.x) {
       found = { x: newRanges[0].max + 1, y: row };
-      break;
     }
+    if (found !== undefined)
+      break;
   }
   if (found !== undefined) {
     console.log(`Part 2: ${found.x * 4000000 + found.y}`);
