@@ -5,7 +5,30 @@ interface XY {
   y: number;
 }
 
-class SensorAndBeacon {
+class Range {
+  constructor(public min = 0, public max=0) {}
+
+  contains(r: Range) {
+    return this.min <= r.min && this.max >= r.max;
+  }
+
+  overlaps(r: Range) {
+    return this.contains(r) || (this.min >= r.min && this.min <= r.max) || (this.max >= r.min && this.max <= r.max);
+  }
+
+  union(r: Range) {
+    if (!this.overlaps(r)) return false;
+    this.min = Math.min(this.min, r.min);
+    this.max = Math.max(this.max, r.max);
+    return true;
+  }
+
+  get length() {
+    return this.max - this.min + 1;
+  }
+}
+
+class Sensor {
   distance: number;
   constructor(public sensor: XY, public beacon: XY) {
     this.distance = this.distanceToPoint(beacon)
@@ -46,25 +69,32 @@ class SensorAndBeacon {
     return newXValues;
   }
 
-  static load(line: string): SensorAndBeacon | undefined {
+  getCovered(row: number, min: number, max: number) : Range | undefined {
+    //if sensor not within distance of the row, return empty set
+    const diff = Math.abs(this.sensor.y - row);
+    if (diff > this.distance) return undefined;
+    const offset = this.distance - diff;
+    return new Range(Math.max(min, this.sensor.x - offset), Math.min(max, this.sensor.x + offset));
+  }
+
+  static load(line: string): Sensor | undefined {
     if (!line.startsWith("Sensor at ")) return undefined;
     const [sensorStr, beaconStr] = line.split(": closest beacon is at ");
-    const sAndB = new SensorAndBeacon(this.parseXY(sensorStr.substring(10)), this.parseXY(beaconStr));
-    return sAndB;
+    return new Sensor(this.parseXY(sensorStr.substring(10)), this.parseXY(beaconStr));
   }
 }
 
 function loadData(fileName: string) {
-  const data = new Array<SensorAndBeacon>();
+  const data = new Array<Sensor>();
   readFile(fileName, import.meta.url).forEach((l) => {
-    const item = SensorAndBeacon.load(l);
+    const item = Sensor.load(l);
     if (item !== undefined)
       data.push(item);
   });
   return data;
 }
 
-function part1(data: Array<SensorAndBeacon>, row = 10) {
+function part1(data: Array<Sensor>, row = 10) {
   const values = new Set<number>();
   // add all locations within distance of the row
   data.forEach(val => val.valuesWithinDistance(row).forEach((n) => values.add(n)));
@@ -73,54 +103,53 @@ function part1(data: Array<SensorAndBeacon>, row = 10) {
   console.log(`Part 1: ${values.size}`);
 }
 
-function getArrayOfValues(max: number) {
-  const arr = new Array<number>(max+1);
-  for (let x = 0; x <= max; x++) {
-    arr[x] = x;
-  }
-  return arr;
-}
-
-function part2(data: Array<SensorAndBeacon>, max = {x: 20, y: 20}) {
+function part2(data: Array<Sensor>, max = {x: 20, y: 20}) {
+  // data.sort((a, b) => b.distance - a.distance);
+  let found: XY | undefined = undefined;
   for (let row = 0; row <= max.y; row++) {
-    const values = new Set<number>();
-    // add all locations within distance of the row and within the bounds of 0 to max.x
-    data.forEach(val => val.valuesWithinDistance(row).forEach((x) => {if (x >= 0 && x <= max.x) values.add(x)}));
-    // see if the row has any empty values
-    if (values.size !== max.x + 1) {
-      for (let x=0; x <= max.x; x++) {
-        if (!values.has(x)) {
-          console.log(`Part 2: ${x * 4000000 + row}`);
-          return;
-        }
-      }
-    }
-  }
-}
-
-function part2New(data: Array<SensorAndBeacon>, max = {x: 20, y: 20}) {
-  data.sort((a, b) => b.distance - a.distance);
-  const fullArray = getArrayOfValues(max.x);
-  for (let row = 0; row <= max.y; row++) {
-    let xValues = fullArray.slice();
+    const ranges = new Array<Range>();
     data.forEach((val) => {
-      if (xValues.length !== 0) {
-        const newVals = val.removeCoveredXValues(row, xValues);
-        xValues = newVals;
-      }
+      const range = val.getCovered(row, 0, max.x);
+      if (range)
+        ranges.push(range);
     });
-    if (xValues.length === 1) {
-      console.log(`Part 2: ${xValues[0] * 4000000 + row}`);
-      return;
+    ranges.sort((a, b) => {
+      const diff = a.min - b.min;
+      if (diff !== 0) return diff;
+      return a.max - b.max;
+    });
+    const newRanges = new Array<Range>();
+    for (const r of ranges) {
+      if (newRanges.length === 0) {
+        newRanges.push(r);
+      } else if (!newRanges[newRanges.length-1].union(r)) {
+        newRanges.push(r);
+        if (newRanges.length > 2)
+          break;
+      }
     }
+    if (newRanges.length > 2)
+      continue; // move on to next row, too many non-covered
+
+    if (newRanges.length === 1) {
+      if (newRanges[0].length === max.x) {
+        found = { x: newRanges[0].min === 0 ? max.x - 1 : 0, y: row };
+        break;
+      }
+    } else if ((newRanges[0].length + newRanges[1].length) === max.x) { //length = 2
+      found = { x: newRanges[0].max + 1, y: row };
+      break;
+    }
+  }
+  if (found !== undefined) {
+    console.log(`Part 2: ${found.x * 4000000 + found.y}`);
   }
 }
 
 const sampleData = loadData("sample.txt");
 part1(sampleData);
-// part2(sampleData);
-part2New(sampleData);
+part2(sampleData);
 
 const inputData = loadData("input.txt");
 part1(inputData, 2000000);
-part2New(inputData, { x: 4000000, y: 4000000});
+part2(inputData, { x: 4000000, y: 4000000});
